@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"log"
@@ -14,6 +15,12 @@ import (
 
 func makeKey(i int) []byte {
 	return []byte(fmt.Sprintf("key%20d", i))
+}
+
+func makeValue(rr *rand.Rand) []byte {
+	v := make([]byte, 237)
+	_, _ = rr.Read(v)
+	return v
 }
 
 func bulkInsertAndSearch(dbPath string, totalN int, useSnappy bool) error {
@@ -50,12 +57,12 @@ func bulkInsertAndSearch(dbPath string, totalN int, useSnappy bool) error {
 		return err
 	}
 
+	rr := rand.New(rand.NewSource(77))
 	t0 := time.Now()
 	for i := 0; i < totalN; i++ {
 		key := makeKey(i)
-		if err := m.Insert(
-			key,
-			[]byte("biger_value_"+string(key)+"_that_consists_of_bunch_of_chars"+string(key))); err != nil {
+		value := makeValue(rr)
+		if err := m.Insert(key, value); err != nil {
 			return err
 		}
 	}
@@ -90,7 +97,6 @@ func bulkInsertAndSearch(dbPath string, totalN int, useSnappy bool) error {
 		return err
 	}
 
-	rr := rand.New(rand.NewSource(77))
 	searchN := 20
 	t0 = time.Now()
 	for i := 0; i < searchN; i++ {
@@ -106,7 +112,7 @@ func bulkInsertAndSearch(dbPath string, totalN int, useSnappy bool) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("Search Key: %s:%s", key, value)
+		log.Printf("Search Key: %s:%s", key, hex.EncodeToString(value)[:40])
 	}
 	tDelta := time.Now().Sub(t0)
 	log.Printf("Searches Took: %v, Per Search: %v", tDelta, tDelta/time.Duration(searchN))
