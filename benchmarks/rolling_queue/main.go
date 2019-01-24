@@ -37,6 +37,7 @@ func inserter(ctx context.Context, c *wt.Connection, totalN int, rowCounter *int
 	rr := rand.New(rand.NewSource(77))
 	t0 := time.Now()
 	prevI := 0
+	progressN := 1000000
 	for i := 0; ; i++ {
 		key := makeKey(i)
 		value := makeValue(rr)
@@ -45,7 +46,7 @@ func inserter(ctx context.Context, c *wt.Connection, totalN int, rowCounter *int
 		}
 		rowCount := atomic.AddInt64(rowCounter, 1)
 
-		if i%1000000 == 0 {
+		if i%progressN == 0 {
 			if ctx.Err() != nil {
 				break
 			}
@@ -56,7 +57,7 @@ func inserter(ctx context.Context, c *wt.Connection, totalN int, rowCounter *int
 			prevI = i + 1
 			t0 = now
 		}
-		for rowCount > int64(totalN)*11/10 && rowCount > int64(totalN)+1000000 {
+		for rowCount > int64(totalN+2*progressN) {
 			time.Sleep(time.Millisecond)
 		}
 	}
