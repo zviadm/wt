@@ -23,7 +23,8 @@ func makeValue(rr *rand.Rand) []byte {
 	return v
 }
 
-func bulkInsertAndSearch(dbPath string, totalN int, useSnappy bool) error {
+func bulkInsertAndSearch(
+	dbPath string, totalN int, useSnappy bool, useBulk bool) error {
 	dbPath = path.Join(dbPath, "bench_bulkinsertandsearch.wt")
 	_ = os.RemoveAll(dbPath)
 	if err := os.MkdirAll(dbPath, 0755); err != nil {
@@ -52,7 +53,7 @@ func bulkInsertAndSearch(dbPath string, totalN int, useSnappy bool) error {
 		return err
 	}
 
-	m, err := s.Mutate("table:test1", &wt.MutationConfig{Bulk: wt.True})
+	m, err := s.Mutate("table:test1", &wt.MutationConfig{Bulk: &useBulk})
 	if err != nil {
 		return err
 	}
@@ -65,8 +66,14 @@ func bulkInsertAndSearch(dbPath string, totalN int, useSnappy bool) error {
 		if err := m.Insert(key, value); err != nil {
 			return err
 		}
+
+		if i%(totalN/10) == 0 {
+			tDelta := time.Now().Sub(t0)
+			log.Printf("elapsed: %v, per item: %v", tDelta, tDelta/time.Duration(i+1))
+		}
 	}
-	log.Printf("Insert took: %v", time.Now().Sub(t0))
+	tDelta := time.Now().Sub(t0)
+	log.Printf("Insert took: %v, per item: %v", tDelta, tDelta/time.Duration(totalN))
 	if err := m.Close(); err != nil {
 		return err
 	}
@@ -114,7 +121,7 @@ func bulkInsertAndSearch(dbPath string, totalN int, useSnappy bool) error {
 		}
 		log.Printf("Search Key: %s:%s", key, hex.EncodeToString(value)[:40])
 	}
-	tDelta := time.Now().Sub(t0)
+	tDelta = time.Now().Sub(t0)
 	log.Printf("Searches Took: %v, Per Search: %v", tDelta, tDelta/time.Duration(searchN))
 
 	if err := scanner.Close(); err != nil {
@@ -128,9 +135,10 @@ func main() {
 	dbPath := flag.String("path", "/tmp", "")
 	totalN := flag.Int("total_items", 10000, "")
 	useSnappy := flag.Bool("use_snappy", true, "")
+	useBulk := flag.Bool("use_bulk", false, "")
 	flag.Parse()
 
-	err := bulkInsertAndSearch(*dbPath, *totalN, *useSnappy)
+	err := bulkInsertAndSearch(*dbPath, *totalN, *useSnappy, *useBulk)
 	if err != nil {
 		log.Fatalf("Benchmark errored unexpectedly: %v", err)
 	}
