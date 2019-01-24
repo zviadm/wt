@@ -57,7 +57,7 @@ func inserter(ctx context.Context, c *wt.Connection, totalN int, rowCounter *int
 			prevI = i + 1
 			t0 = now
 		}
-		for rowCount > int64(totalN+2*progressN) {
+		if rowCount > int64(totalN+2*progressN) {
 			time.Sleep(time.Millisecond)
 		}
 	}
