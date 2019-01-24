@@ -25,7 +25,7 @@ func makeValue(rr *rand.Rand) []byte {
 	return v
 }
 
-func inserter(ctx context.Context, c *wt.Connection, rowCounter *int64) error {
+func inserter(ctx context.Context, c *wt.Connection, totalN int, rowCounter *int64) error {
 	s, err := c.OpenSession(nil)
 	if err != nil {
 		return err
@@ -36,19 +36,28 @@ func inserter(ctx context.Context, c *wt.Connection, rowCounter *int64) error {
 	}
 	rr := rand.New(rand.NewSource(77))
 	t0 := time.Now()
+	prevI := 0
 	for i := 0; ; i++ {
 		key := makeKey(i)
 		value := makeValue(rr)
 		if err := m.Insert(key, value); err != nil {
 			return err
 		}
-		atomic.AddInt64(rowCounter, 1)
+		rowCount := atomic.AddInt64(rowCounter, 1)
 
 		if i%1000000 == 0 {
 			if ctx.Err() != nil {
 				break
 			}
-			log.Printf("inserts: %v, per item: %v", i, time.Now().Sub(t0)/time.Duration(i+1))
+			now := time.Now()
+			log.Printf(
+				"inserts: %v (%v), Queue mode? %v, per item: %v",
+				i, rowCount, int64(i) > rowCount, now.Sub(t0)/time.Duration(i-prevI+1))
+			prevI = i + 1
+			t0 = now
+		}
+		for rowCount > int64(totalN)*11/10 && rowCount > int64(totalN)+1000000 {
+			time.Sleep(time.Millisecond)
 		}
 	}
 	_ = m.Close()
@@ -88,7 +97,7 @@ func rollingQueue(
 	}()
 	var rowCounter int64
 	go func() {
-		inserterDone <- inserter(ctx, c, &rowCounter)
+		inserterDone <- inserter(ctx, c, totalN, &rowCounter)
 	}()
 
 	m, err := s.Mutate("table:test1", nil)
@@ -102,6 +111,7 @@ func rollingQueue(
 	for {
 		if atomic.LoadInt64(&rowCounter) < int64(totalN) {
 			log.Print("Remover: Caughtup, sleeping......")
+			time.Sleep(time.Second)
 			for atomic.LoadInt64(&rowCounter) < int64(totalN) {
 				time.Sleep(time.Second)
 			}
