@@ -41,10 +41,6 @@ func bulkInsertAndSearch(
 	if err != nil {
 		return err
 	}
-
-	if err := s.Drop("table:test1", &wt.DropConfig{Force: wt.True}); err != nil {
-		return err
-	}
 	tableCfg := &wt.DataSourceConfig{}
 	if useSnappy {
 		tableCfg.BlockCompressor = "snappy"
