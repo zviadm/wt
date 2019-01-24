@@ -83,7 +83,38 @@ func bulkInsertAndSearch(
 	if err != nil {
 		return err
 	}
+
+	searchN := 20
+	t0 = time.Now()
+	for i := 0; i < searchN; i++ {
+		keyIdx := rr.Intn(totalN)
+		t00 := time.Now()
+		if err := scanner.Search(makeKey(keyIdx)); err != nil {
+			return err
+		}
+		t1 := time.Now()
+		key, err := scanner.UnsafeKey()
+		if err != nil {
+			return err
+		}
+		t2 := time.Now()
+		value, err := scanner.UnsafeValue()
+		if err != nil {
+			return err
+		}
+		t3 := time.Now()
+		log.Printf(
+			"Search Key: %s:%s, Search/Key/Value: %v/%v/%v",
+			key, hex.EncodeToString(value)[:40],
+			t1.Sub(t00), t2.Sub(t1), t3.Sub(t2))
+	}
+	tDelta = time.Now().Sub(t0)
+	log.Printf("Searches Took: %v, Per Search: %v", tDelta, tDelta/time.Duration(searchN))
+
 	log.Print("Scanning Keys......")
+	if err := scanner.Reset(); err != nil {
+		return err
+	}
 	for i := 0; ; i++ {
 		if err := scanner.Next(); err != nil {
 			log.Printf("Scan Finished: %v, items: %v", err, i)
@@ -95,39 +126,15 @@ func bulkInsertAndSearch(
 			return err
 		}
 		if i%(totalN/10) == 0 {
-			log.Printf("%s", key)
+			tDelta := time.Now().Sub(t0)
+			log.Printf("%s, per item: %v", key, tDelta/time.Duration(i+1))
 		}
 	}
 	log.Printf("Scan took: %v", time.Now().Sub(t0))
 
-	if err := scanner.Reset(); err != nil {
-		return err
-	}
-
-	searchN := 20
-	t0 = time.Now()
-	for i := 0; i < searchN; i++ {
-		keyIdx := rr.Intn(totalN)
-		if err := scanner.Search(makeKey(keyIdx)); err != nil {
-			return err
-		}
-		key, err := scanner.UnsafeKey()
-		if err != nil {
-			return err
-		}
-		value, err := scanner.UnsafeValue()
-		if err != nil {
-			return err
-		}
-		log.Printf("Search Key: %s:%s", key, hex.EncodeToString(value)[:40])
-	}
-	tDelta = time.Now().Sub(t0)
-	log.Printf("Searches Took: %v, Per Search: %v", tDelta, tDelta/time.Duration(searchN))
-
 	if err := scanner.Close(); err != nil {
 		return err
 	}
-
 	return nil
 }
 

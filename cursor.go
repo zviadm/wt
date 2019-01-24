@@ -152,6 +152,8 @@ func (c *Scanner) UnsafeValue() ([]byte, error) {
 	return (*[goArrayMaxLen]byte)(unsafe.Pointer(item.data))[:item.size:item.size], nil
 }
 
+// TODO: `cgo` overhead is most noticable for Scan calls when doing a range scan
+// using next/prev. Might need to change the API to do bigger batch processing directly in C.
 func (c *Scanner) Next() error {
 	if r := C.wt_cursor_next(c.c); r != 0 {
 		return wtError(r)
