@@ -31,7 +31,10 @@ func bulkInsertAndSearch(
 		return err
 	}
 
-	c, err := wt.Open(dbPath, &wt.ConnectionConfig{Create: wt.True})
+	c, err := wt.Open(dbPath, &wt.ConnectionConfig{
+		Create: wt.True,
+		Log:    "enabled,compressor=snappy",
+	})
 	if err != nil {
 		return err
 	}
@@ -67,6 +70,9 @@ func bulkInsertAndSearch(
 			tDelta := time.Now().Sub(t0)
 			log.Printf("elapsed: %v, per item: %v", tDelta, tDelta/time.Duration(i+1))
 		}
+	}
+	if err := s.LogFlush(wt.SyncOn); err != nil {
+		return err
 	}
 	tDelta := time.Now().Sub(t0)
 	log.Printf("Insert took: %v, per item: %v", tDelta, tDelta/time.Duration(totalN))

@@ -33,6 +33,8 @@ type Connection struct {
 type ConnectionConfig struct {
 	Create     *bool    `json:"create,omitempty"`
 	Extensions []string `json:"extensions,omitempty"`
+	// TODO: figure out if there is a structured way to do multi level config options.
+	Log string `json:"log,omitempty"`
 }
 
 func Open(path string, config *ConnectionConfig) (*Connection, error) {

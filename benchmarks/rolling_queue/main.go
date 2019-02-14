@@ -45,6 +45,15 @@ func inserter(ctx context.Context, c *wt.Connection, totalN int, rowCounter *int
 			return err
 		}
 		rowCount := atomic.AddInt64(rowCounter, 1)
+		inQueueMode := int64(i) > rowCount
+
+		if i%1000 == 0 {
+			// Once we are in Queue mode, start actually syncing the logs to the
+			// storage device.
+			if err := s.LogFlush(wt.SyncOn); err != nil {
+				return err
+			}
+		}
 
 		if i%progressN == 0 {
 			if ctx.Err() != nil {
@@ -53,7 +62,7 @@ func inserter(ctx context.Context, c *wt.Connection, totalN int, rowCounter *int
 			now := time.Now()
 			log.Printf(
 				"inserts: %v (%v), Queue mode? %v, per item: %v",
-				i, rowCount, int64(i) > rowCount, now.Sub(t0)/time.Duration(i-prevI+1))
+				i, rowCount, inQueueMode, now.Sub(t0)/time.Duration(i-prevI+1))
 			prevI = i + 1
 			t0 = now
 		}
@@ -67,13 +76,16 @@ func inserter(ctx context.Context, c *wt.Connection, totalN int, rowCounter *int
 }
 
 func rollingQueue(
-	dbPath string, totalN int, useSnappy bool) error {
+	dbPath string, totalN int, useSnappy bool) (err error) {
 	dbPath = path.Join(dbPath, "bench_rollingqueue.wt")
 	_ = os.RemoveAll(dbPath)
 	if err := os.MkdirAll(dbPath, 0755); err != nil {
 		return err
 	}
-	c, err := wt.Open(dbPath, &wt.ConnectionConfig{Create: wt.True})
+	c, err := wt.Open(dbPath, &wt.ConnectionConfig{
+		Create: wt.True,
+		Log:    "enabled,compressor=snappy",
+	})
 	if err != nil {
 		return err
 	}
@@ -94,11 +106,14 @@ func rollingQueue(
 	inserterDone := make(chan error, 1)
 	defer func() {
 		cancel()
-		<-inserterDone
+		if inserterErr := <-inserterDone; inserterErr != nil {
+			err = inserterErr
+		}
 	}()
 	var rowCounter int64
 	go func() {
 		inserterDone <- inserter(ctx, c, totalN, &rowCounter)
+		cancel()
 	}()
 
 	m, err := s.Mutate("table:test1", nil)
@@ -114,6 +129,9 @@ func rollingQueue(
 			log.Print("Remover: Caughtup, sleeping......")
 			time.Sleep(time.Second)
 			for atomic.LoadInt64(&rowCounter) < int64(totalN) {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
 				time.Sleep(time.Second)
 			}
 			log.Print("Remover: Back at it......")

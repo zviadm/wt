@@ -34,6 +34,12 @@ int wt_session_open_cursor(
 	) {
     return session->open_cursor(session, uri, to_dup, config, cursorp);
 }
+int wt_session_log_flush(
+	WT_SESSION *session,
+	const char *config
+	) {
+    return session->log_flush(session, config);
+}
 */
 import "C"
 
@@ -114,4 +120,21 @@ func (s *Session) Scan(uri string) (*Scanner, error) {
 		return nil, wtError(r)
 	}
 	return c, nil
+}
+
+type SyncMode string
+
+const (
+	SyncOff        = "off"
+	SyncOn         = "on"
+	SyncBackground = "background"
+)
+
+func (s *Session) LogFlush(sync SyncMode) error {
+	cfgC := C.CString("sync=" + string(sync))
+	defer C.free(unsafe.Pointer(cfgC))
+	if r := C.wt_session_log_flush(s.s, cfgC); r != 0 {
+		return wtError(r)
+	}
+	return nil
 }
