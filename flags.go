@@ -1,4 +1,4 @@
 package wt
 
-// #cgo LDFLAGS: -lwiredtiger -lwiredtiger_snappy -lsnappy
+// #cgo LDFLAGS: -lwiredtiger -lsnappy -ldl
 import "C"
