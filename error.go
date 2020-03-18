@@ -8,7 +8,6 @@ import "C"
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
 )
@@ -20,9 +19,35 @@ var (
 	False  *bool = &vFalse
 )
 
+type ErrorCode int
+
+const (
+	ErrNotFound ErrorCode = C.WT_NOTFOUND
+)
+
+type Error struct {
+	Code ErrorCode
+}
+
+func (e *Error) Error() string {
+	switch (e.Code) {
+	case ErrNotFound:
+		return "WT_NOTFOUND"
+	default:
+		return fmt.Sprintf("WTError: %v", e.Code)
+	}
+}
+
+func ErrCode(e error) ErrorCode {
+	wtErr, ok := e.(*Error)
+	if !ok {
+		return -1
+	}
+	return wtErr.Code
+}
+
 func wtError(errorCode C.int) error {
-	// TODO: do better
-	return errors.New(fmt.Sprintf("WTError: %v", errorCode))
+	return &Error{Code: ErrorCode(errorCode)}
 }
 
 func configC(config interface{}) *C.char {

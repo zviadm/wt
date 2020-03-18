@@ -132,7 +132,7 @@ const (
 	goArrayMaxLen = 0x7fffffff
 )
 
-// UnsafeKey() returns the current key referenced by the cursos. The memory
+// UnsafeKey() returns the current key referenced by the cursor. The memory
 // is invalid after the next operation on the cursor.
 func (c *Scanner) UnsafeKey() ([]byte, error) {
 	var item C.WT_ITEM
@@ -142,7 +142,7 @@ func (c *Scanner) UnsafeKey() ([]byte, error) {
 	return (*[goArrayMaxLen]byte)(unsafe.Pointer(item.data))[:item.size:item.size], nil
 }
 
-// UnsafeValue() returns the current key referenced by the cursos. The memory
+// UnsafeValue() returns the current value referenced by the cursor. The memory
 // is invalid after the next operation on the cursor.
 func (c *Scanner) UnsafeValue() ([]byte, error) {
 	var item C.WT_ITEM

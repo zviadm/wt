@@ -95,11 +95,13 @@ func (s *Session) Drop(name string, config *DropConfig) error {
 type MutationConfig struct {
 	Overwrite *bool `json:"overwrite,omitempty"`
 	Bulk      *bool `json:"bulk,omitempty"`
+	raw bool `json:"raw"`
 }
 
 func (s *Session) Mutate(uri string, config *MutationConfig) (*Mutator, error) {
 	uriC := C.CString(uri)
 	defer C.free(unsafe.Pointer(uriC))
+	config.raw = true // Always reading in "raw" mode.
 	cfgC := configC(config)
 	defer C.free(unsafe.Pointer(cfgC))
 
@@ -114,9 +116,11 @@ func (s *Session) Mutate(uri string, config *MutationConfig) (*Mutator, error) {
 func (s *Session) Scan(uri string) (*Scanner, error) {
 	uriC := C.CString(uri)
 	defer C.free(unsafe.Pointer(uriC))
+	cfgC := C.CString("raw")
+	defer C.free(unsafe.Pointer(cfgC))
 
 	c := &Scanner{}
-	if r := C.wt_session_open_cursor(s.s, uriC, nil, nil, &c.c); r != 0 {
+	if r := C.wt_session_open_cursor(s.s, uriC, nil, cfgC, &c.c); r != 0 {
 		return nil, wtError(r)
 	}
 	return c, nil
