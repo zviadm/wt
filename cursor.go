@@ -70,11 +70,9 @@ type Mutator struct {
 }
 
 func (c *Mutator) Close() error {
-	if r := C.wt_cursor_close(c.c); r != 0 {
-		return wtError(r)
-	}
+	r := C.wt_cursor_close(c.c)
 	c.c = nil
-	return nil
+	return wtError(r)
 }
 func (c *Mutator) Insert(key, value []byte) error {
 	C.wt_cursor_set_key(c.c, unsafe.Pointer(&key[0]), C.size_t(len(key)))
@@ -82,10 +80,8 @@ func (c *Mutator) Insert(key, value []byte) error {
 	if r := C.wt_cursor_insert(c.c); r != 0 {
 		return wtError(r)
 	}
-	if r := C.wt_cursor_reset(c.c); r != 0 {
-		return wtError(r)
-	}
-	return nil
+	r := C.wt_cursor_reset(c.c)
+	return wtError(r)
 }
 func (c *Mutator) Update(key, value []byte) error {
 	C.wt_cursor_set_key(c.c, unsafe.Pointer(&key[0]), C.size_t(len(key)))
@@ -93,20 +89,16 @@ func (c *Mutator) Update(key, value []byte) error {
 	if r := C.wt_cursor_update(c.c); r != 0 {
 		return wtError(r)
 	}
-	if r := C.wt_cursor_reset(c.c); r != 0 {
-		return wtError(r)
-	}
-	return nil
+	r := C.wt_cursor_reset(c.c)
+	return wtError(r)
 }
 func (c *Mutator) Remove(key []byte) error {
 	C.wt_cursor_set_key(c.c, unsafe.Pointer(&key[0]), C.size_t(len(key)))
 	if r := C.wt_cursor_remove(c.c); r != 0 {
 		return wtError(r)
 	}
-	if r := C.wt_cursor_reset(c.c); r != 0 {
-		return wtError(r)
-	}
-	return nil
+	r := C.wt_cursor_reset(c.c)
+	return wtError(r)
 }
 
 type Scanner struct {
@@ -114,17 +106,13 @@ type Scanner struct {
 }
 
 func (c *Scanner) Close() error {
-	if r := C.wt_cursor_close(c.c); r != 0 {
-		return wtError(r)
-	}
+	r := C.wt_cursor_close(c.c)
 	c.c = nil
-	return nil
+	return wtError(r)
 }
 func (c *Scanner) Reset() error {
-	if r := C.wt_cursor_reset(c.c); r != 0 {
-		return wtError(r)
-	}
-	return nil
+	r := C.wt_cursor_reset(c.c)
+	return wtError(r)
 }
 
 const (
@@ -155,23 +143,17 @@ func (c *Scanner) UnsafeValue() ([]byte, error) {
 // TODO: `cgo` overhead is most noticable for Scan calls when doing a range scan
 // using next/prev. Might need to change the API to do bigger batch processing directly in C.
 func (c *Scanner) Next() error {
-	if r := C.wt_cursor_next(c.c); r != 0 {
-		return wtError(r)
-	}
-	return nil
+	r := C.wt_cursor_next(c.c)
+	return wtError(r)
 }
 func (c *Scanner) Prev() error {
-	if r := C.wt_cursor_prev(c.c); r != 0 {
-		return wtError(r)
-	}
-	return nil
+	r := C.wt_cursor_prev(c.c)
+	return wtError(r)
 }
 func (c *Scanner) Search(key []byte) error {
 	C.wt_cursor_set_key(c.c, unsafe.Pointer(&key[0]), C.size_t(len(key)))
-	if r := C.wt_cursor_search(c.c); r != 0 {
-		return wtError(r)
-	}
-	return nil
+	r := C.wt_cursor_search(c.c)
+	return wtError(r)
 }
 
 type NearMatchType int
@@ -195,4 +177,13 @@ func (c *Scanner) SearchNear(key []byte) (NearMatchType, error) {
 	} else {
 		return ExactMatch, nil
 	}
+}
+
+// Reads value for a specific key. Similar to UnsafeValue(), value returned becomes invalid
+// after another operation is performed on the cursor, thus it needs to be consumed/copied immediatelly.
+func (c *Scanner) ReadUnsafeValue(key []byte) ([]byte, error) {
+	if err := c.Search(key); err != nil {
+		return nil, err
+	}
+	return c.UnsafeValue()
 }

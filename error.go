@@ -47,6 +47,9 @@ func ErrCode(e error) ErrorCode {
 }
 
 func wtError(errorCode C.int) error {
+	if errorCode == 0 {
+		return nil
+	}
 	return &Error{Code: ErrorCode(errorCode)}
 }
 
