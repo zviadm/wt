@@ -40,6 +40,24 @@ int wt_session_log_flush(
 	) {
     return session->log_flush(session, config);
 }
+int wt_session_begin_transaction(
+	WT_SESSION *session,
+	const char *config
+	) {
+    return session->begin_transaction(session, config);
+}
+int wt_session_commit_transaction(
+	WT_SESSION *session,
+	const char *config
+	) {
+    return session->commit_transaction(session, config);
+}
+int wt_session_rollback_transaction(
+	WT_SESSION *session,
+	const char *config
+	) {
+    return session->rollback_transaction(session, config);
+}
 */
 import "C"
 
@@ -86,10 +104,8 @@ func (s *Session) Drop(name string, config *DropConfig) error {
 	cfgC := configC(config)
 	defer C.free(unsafe.Pointer(cfgC))
 
-	if r := C.wt_session_drop(s.s, nameC, cfgC); r != 0 {
-		return wtError(r)
-	}
-	return nil
+	r := C.wt_session_drop(s.s, nameC, cfgC)
+	return wtError(r)
 }
 
 type MutationConfig struct {
@@ -101,15 +117,18 @@ type MutationConfig struct {
 func (s *Session) Mutate(uri string, config *MutationConfig) (*Mutator, error) {
 	uriC := C.CString(uri)
 	defer C.free(unsafe.Pointer(uriC))
-	config.raw = true // Always reading in "raw" mode.
-	cfgC := configC(config)
+	var cfgC *C.char
+	if config != nil {
+		config.raw = true // Always reading in "raw" mode.
+		cfgC = configC(config)
+	} else {
+		cfgC = C.CString("raw")
+	}
 	defer C.free(unsafe.Pointer(cfgC))
 
 	c := &Mutator{}
-	if r := C.wt_session_open_cursor(s.s, uriC, nil, cfgC, &c.c); r != 0 {
-		return nil, wtError(r)
-	}
-	return c, nil
+	r := C.wt_session_open_cursor(s.s, uriC, nil, cfgC, &c.c)
+	return c, wtError(r)
 }
 
 // TODO: scan config?
@@ -120,10 +139,8 @@ func (s *Session) Scan(uri string) (*Scanner, error) {
 	defer C.free(unsafe.Pointer(cfgC))
 
 	c := &Scanner{}
-	if r := C.wt_session_open_cursor(s.s, uriC, nil, cfgC, &c.c); r != 0 {
-		return nil, wtError(r)
-	}
-	return c, nil
+	r := C.wt_session_open_cursor(s.s, uriC, nil, cfgC, &c.c)
+	return c, wtError(r)
 }
 
 type SyncMode string
@@ -141,4 +158,17 @@ func (s *Session) LogFlush(sync SyncMode) error {
 		return wtError(r)
 	}
 	return nil
+}
+
+func (s *Session) TxBegin() error {
+	r := C.wt_session_begin_transaction(s.s, nil)
+	return wtError(r)
+}
+func (s *Session) TxCommit() error {
+	r := C.wt_session_commit_transaction(s.s, nil)
+	return wtError(r)
+}
+func (s *Session) TxRollback() error {
+	r := C.wt_session_rollback_transaction(s.s, nil)
+	return wtError(r)
 }
