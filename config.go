@@ -4,7 +4,6 @@ import "C"
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -78,7 +77,6 @@ func configC(config interface{}) *C.char {
 		}
 	}
 	cfg := strings.Join(cfgParts, ",")
-	log.Printf("cfg: %s", cfg)
 	cfgC := C.CString(cfg)
 	return cfgC
 }
