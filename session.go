@@ -78,7 +78,7 @@ func (s *Session) Close() error {
 }
 
 type DataSourceConfig struct {
-	BlockCompressor string `json:"block_compressor,omitempty"`
+	BlockCompressor string
 }
 
 func (s *Session) Create(name string, config *DataSourceConfig) error {
@@ -94,8 +94,8 @@ func (s *Session) Create(name string, config *DataSourceConfig) error {
 }
 
 type DropConfig struct {
-	Force       *bool `json:"force,omitempty"`
-	RemoveFiles *bool `json:"remove_files,omitempty"`
+	Force       wtBool
+	RemoveFiles wtBool
 }
 
 func (s *Session) Drop(name string, config *DropConfig) error {
@@ -109,9 +109,9 @@ func (s *Session) Drop(name string, config *DropConfig) error {
 }
 
 type MutationConfig struct {
-	Overwrite *bool `json:"overwrite,omitempty"`
-	Bulk      *bool `json:"bulk,omitempty"`
-	raw bool `json:"raw"`
+	Overwrite wtBool
+	Bulk      wtBool
+	raw       wtBool
 }
 
 func (s *Session) Mutate(uri string, config *MutationConfig) (*Mutator, error) {
@@ -119,7 +119,7 @@ func (s *Session) Mutate(uri string, config *MutationConfig) (*Mutator, error) {
 	defer C.free(unsafe.Pointer(uriC))
 	var cfgC *C.char
 	if config != nil {
-		config.raw = true // Always reading in "raw" mode.
+		config.raw = True // Always reading in "raw" mode.
 		cfgC = configC(config)
 	} else {
 		cfgC = C.CString("raw")

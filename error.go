@@ -7,16 +7,7 @@ package wt
 import "C"
 
 import (
-	"encoding/json"
 	"fmt"
-	"reflect"
-)
-
-var (
-	vTrue        = true
-	vFalse       = false
-	True   *bool = &vTrue
-	False  *bool = &vFalse
 )
 
 type ErrorCode int
@@ -30,7 +21,7 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
-	switch (e.Code) {
+	switch e.Code {
 	case ErrNotFound:
 		return "WT_NOTFOUND"
 	default:
@@ -51,16 +42,4 @@ func wtError(errorCode C.int) error {
 		return nil
 	}
 	return &Error{Code: ErrorCode(errorCode)}
-}
-
-func configC(config interface{}) *C.char {
-	if config == nil || reflect.ValueOf(config).IsNil() {
-		return nil
-	}
-	cfg, err := json.Marshal(config)
-	if err != nil {
-		panic(err)
-	}
-	cfgC := C.CString(string(cfg))
-	return cfgC
 }
