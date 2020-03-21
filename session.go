@@ -66,7 +66,8 @@ import (
 )
 
 type Session struct {
-	s *C.WT_SESSION
+	s    *C.WT_SESSION
+	inTx bool
 }
 
 func (s *Session) Close() error {
@@ -162,13 +163,19 @@ func (s *Session) LogFlush(sync SyncMode) error {
 
 func (s *Session) TxBegin() error {
 	r := C.wt_session_begin_transaction(s.s, nil)
+	s.inTx = (r == 0)
 	return wtError(r)
 }
 func (s *Session) TxCommit() error {
 	r := C.wt_session_commit_transaction(s.s, nil)
+	s.inTx = false
 	return wtError(r)
 }
 func (s *Session) TxRollback() error {
 	r := C.wt_session_rollback_transaction(s.s, nil)
+	s.inTx = false
 	return wtError(r)
+}
+func (s *Session) InTx() bool {
+	return s.inTx
 }

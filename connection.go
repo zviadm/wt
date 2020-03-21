@@ -31,8 +31,9 @@ type Connection struct {
 }
 
 type ConnectionConfig struct {
-	Create wtBool
-	Log    string
+	Create          wtBool
+	Log             string
+	TransactionSync string
 }
 
 func Open(path string, config *ConnectionConfig) (*Connection, error) {
