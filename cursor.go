@@ -62,57 +62,67 @@ import (
 	"unsafe"
 )
 
+type cursor struct {
+	c *C.WT_CURSOR
+}
+
+func (c *cursor) Close() error {
+	r := C.wt_cursor_close(c.c)
+	c.c = nil
+	return wtError(r)
+}
+func (c *cursor) Reset() error {
+	r := C.wt_cursor_reset(c.c)
+	return wtError(r)
+}
+func (c *cursor) setKey(key []byte) {
+	if len(key) > 0 {
+		C.wt_cursor_set_key(c.c, unsafe.Pointer(&key[0]), C.size_t(len(key)))
+	} else {
+		C.wt_cursor_set_key(c.c, nil, 0)
+	}
+}
+func (c *cursor) setValue(value []byte) {
+	if len(value) > 0 {
+		C.wt_cursor_set_value(c.c, unsafe.Pointer(&value[0]), C.size_t(len(value)))
+	} else {
+		C.wt_cursor_set_value(c.c, nil, 0)
+	}
+}
+
 // Mutator exposes apis in a way to avoid any memory copies while inserting data.
 // After each insert, cursor is immediatelly reset making it safe to directly pass in the
 // pointers to the Go byte slices.
 type Mutator struct {
-	c *C.WT_CURSOR
+	cursor
 }
 
-func (c *Mutator) Close() error {
-	r := C.wt_cursor_close(c.c)
-	c.c = nil
-	return wtError(r)
-}
 func (c *Mutator) Insert(key, value []byte) error {
-	C.wt_cursor_set_key(c.c, unsafe.Pointer(&key[0]), C.size_t(len(key)))
-	C.wt_cursor_set_value(c.c, unsafe.Pointer(&value[0]), C.size_t(len(value)))
+	c.setKey(key)
+	c.setValue(value)
 	if r := C.wt_cursor_insert(c.c); r != 0 {
 		return wtError(r)
 	}
-	r := C.wt_cursor_reset(c.c)
-	return wtError(r)
+	return c.Reset()
 }
 func (c *Mutator) Update(key, value []byte) error {
-	C.wt_cursor_set_key(c.c, unsafe.Pointer(&key[0]), C.size_t(len(key)))
-	C.wt_cursor_set_value(c.c, unsafe.Pointer(&value[0]), C.size_t(len(value)))
+	c.setKey(key)
+	c.setValue(value)
 	if r := C.wt_cursor_update(c.c); r != 0 {
 		return wtError(r)
 	}
-	r := C.wt_cursor_reset(c.c)
-	return wtError(r)
+	return c.Reset()
 }
 func (c *Mutator) Remove(key []byte) error {
-	C.wt_cursor_set_key(c.c, unsafe.Pointer(&key[0]), C.size_t(len(key)))
+	c.setKey(key)
 	if r := C.wt_cursor_remove(c.c); r != 0 {
 		return wtError(r)
 	}
-	r := C.wt_cursor_reset(c.c)
-	return wtError(r)
+	return c.Reset()
 }
 
 type Scanner struct {
-	c *C.WT_CURSOR
-}
-
-func (c *Scanner) Close() error {
-	r := C.wt_cursor_close(c.c)
-	c.c = nil
-	return wtError(r)
-}
-func (c *Scanner) Reset() error {
-	r := C.wt_cursor_reset(c.c)
-	return wtError(r)
+	cursor
 }
 
 const (
@@ -126,6 +136,9 @@ func (c *Scanner) UnsafeKey() ([]byte, error) {
 	var item C.WT_ITEM
 	if r := C.wt_cursor_get_key(c.c, &item); r != 0 {
 		return nil, wtError(r)
+	}
+	if item.size == 0 {
+		return nil, nil
 	}
 	return (*[goArrayMaxLen]byte)(unsafe.Pointer(item.data))[:item.size:item.size], nil
 }
@@ -151,7 +164,7 @@ func (c *Scanner) Prev() error {
 	return wtError(r)
 }
 func (c *Scanner) Search(key []byte) error {
-	C.wt_cursor_set_key(c.c, unsafe.Pointer(&key[0]), C.size_t(len(key)))
+	c.setKey(key)
 	r := C.wt_cursor_search(c.c)
 	return wtError(r)
 }
@@ -166,7 +179,7 @@ const (
 
 func (c *Scanner) SearchNear(key []byte) (NearMatchType, error) {
 	var exact C.int
-	C.wt_cursor_set_key(c.c, unsafe.Pointer(&key[0]), C.size_t(len(key)))
+	c.setKey(key)
 	if r := C.wt_cursor_search_near(c.c, &exact); r != 0 {
 		return 0, wtError(r)
 	}
