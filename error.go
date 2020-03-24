@@ -25,7 +25,7 @@ func (e *Error) Error() string {
 	case ErrNotFound:
 		return "WT_NOTFOUND"
 	default:
-		return fmt.Sprintf("WTError: %v", e.Code)
+		return fmt.Sprintf("WTError: %d", e.Code)
 	}
 }
 

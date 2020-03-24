@@ -73,7 +73,7 @@ func configC(config interface{}) *C.char {
 			cfgParts = append(cfgParts, name+"=\""+vvv+"\"")
 			continue
 		default:
-			panic(fmt.Sprintf("unsupport type: %v:%v", vf.Name, vv.Kind()))
+			panic(fmt.Sprintf("unsupported type: %s:%s", vf.Name, vv.Kind()))
 		}
 	}
 	cfg := strings.Join(cfgParts, ",")
