@@ -161,8 +161,14 @@ func (s *Session) LogFlush(sync SyncMode) error {
 	return nil
 }
 
-func (s *Session) TxBegin() error {
-	r := C.wt_session_begin_transaction(s.s, nil)
+type TxConfig struct {
+	Sync wtBool
+}
+
+func (s *Session) TxBegin(config *TxConfig) error {
+	cfgC := configC(config)
+	defer C.free(unsafe.Pointer(cfgC))
+	r := C.wt_session_begin_transaction(s.s, cfgC)
 	s.inTx = (r == 0)
 	return wtError(r)
 }
