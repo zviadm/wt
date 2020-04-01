@@ -34,6 +34,7 @@ type ConnectionConfig struct {
 	Create          wtBool
 	Log             string
 	TransactionSync string
+	SessionMax      int
 }
 
 func Open(path string, config *ConnectionConfig) (*Connection, error) {
