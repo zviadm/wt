@@ -78,6 +78,10 @@ func (s *Session) Close() error {
 	return nil
 }
 
+func (s *Session) IsClosed() bool {
+	return s.s == nil
+}
+
 type DataSourceConfig struct {
 	BlockCompressor string
 }
