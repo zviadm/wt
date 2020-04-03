@@ -10,5 +10,11 @@ If you have a need for a storage engine, give WiredTiger a shot instead of Rocks
 
 # Testing
 
-TODO(zviad): describe how to test using `docker` and `tt`.
+Uses `tt` tool for testing. Note that first run of the tests will take a long time since
+WiredTiger libraries take a long time to build from scratch.
+
+```
+$: go install github.com/zviadm/tt/tt
+$: tt ./...
+```
 
