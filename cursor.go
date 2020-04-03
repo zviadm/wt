@@ -153,7 +153,7 @@ func (c *Scanner) UnsafeValue() ([]byte, error) {
 	return (*[goArrayMaxLen]byte)(unsafe.Pointer(item.data))[:item.size:item.size], nil
 }
 
-// TODO: `cgo` overhead is most noticable for Scan calls when doing a range scan
+// TODO(zviad): `cgo` overhead is most noticable for Scan calls when doing a range scan
 // using next/prev. Might need to change the API to do bigger batch processing directly in C.
 func (c *Scanner) Next() error {
 	r := C.wt_cursor_next(c.c)
@@ -172,9 +172,9 @@ func (c *Scanner) Search(key []byte) error {
 type NearMatchType int
 
 const (
-	ExactMatch   NearMatchType = 0
-	SmallerMatch NearMatchType = -1
-	LargerMatch  NearMatchType = 1
+	MatchedExact   NearMatchType = 0
+	MatchedSmaller NearMatchType = -1
+	MatchedLarger  NearMatchType = 1
 )
 
 func (c *Scanner) SearchNear(key []byte) (NearMatchType, error) {
@@ -184,11 +184,11 @@ func (c *Scanner) SearchNear(key []byte) (NearMatchType, error) {
 		return 0, wtError(r)
 	}
 	if exact < 0 {
-		return SmallerMatch, nil
+		return MatchedSmaller, nil
 	} else if exact > 0 {
-		return LargerMatch, nil
+		return MatchedLarger, nil
 	} else {
-		return ExactMatch, nil
+		return MatchedExact, nil
 	}
 }
 

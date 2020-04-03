@@ -34,12 +34,20 @@ func toSnakeCase(str string) string {
 	return strings.ToLower(snake)
 }
 
+// Encodes config to wiredtiger configuration string.
+// config must be []ConfigStruct of type, with length of 0 or 1,
+// otherwise this function will panic.
+// Transforms CamelCase config fields to snake_case and skips fields
+// with default values.
 func configC(config interface{}) *C.char {
 	v := reflect.ValueOf(config)
-	if config == nil || v.IsNil() {
+	if config == nil || v.IsNil() || v.Len() == 0 {
 		return nil
 	}
-	v = reflect.Indirect(v)
+	if v.Len() > 1 {
+		panic("only 1 config struct must be passed")
+	}
+	v = v.Index(0)
 	vt := v.Type()
 	cfgParts := make([]string, 0, vt.NumField())
 	for idx := 0; idx < vt.NumField(); idx++ {
@@ -69,7 +77,7 @@ func configC(config interface{}) *C.char {
 			if vvv == "" {
 				continue
 			}
-			// TODO(zviad): escape `s`
+			vvv = strings.ReplaceAll(vvv, "\"", "\\\"")
 			cfgParts = append(cfgParts, name+"=\""+vvv+"\"")
 			continue
 		default:

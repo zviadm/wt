@@ -30,17 +30,17 @@ type Connection struct {
 	c *C.WT_CONNECTION
 }
 
-type ConnectionConfig struct {
+type ConnCfg struct {
 	Create          wtBool
 	Log             string
 	TransactionSync string
 	SessionMax      int
 }
 
-func Open(path string, config *ConnectionConfig) (*Connection, error) {
+func Open(path string, cfg ...ConnCfg) (*Connection, error) {
 	pathC := C.CString(path)
 	defer C.free(unsafe.Pointer(pathC))
-	cfgC := configC(config)
+	cfgC := configC(cfg)
 	defer C.free(unsafe.Pointer(cfgC))
 
 	c := &Connection{}
@@ -50,20 +50,26 @@ func Open(path string, config *ConnectionConfig) (*Connection, error) {
 	return c, nil
 }
 
-func (c *Connection) Close() error {
-	if r := C.wt_conn_close(c.c, nil); r != 0 {
+type ConnCloseCfg struct {
+	LeakMemory wtBool
+}
+
+func (c *Connection) Close(cfg ...ConnCloseCfg) error {
+	cfgC := configC(cfg)
+	defer C.free(unsafe.Pointer(cfgC))
+	if r := C.wt_conn_close(c.c, cfgC); r != 0 {
 		return wtError(r)
 	}
 	c.c = nil
 	return nil
 }
 
-type SessionConfig struct {
+type SessionCfg struct {
 	Isolation string
 }
 
-func (c *Connection) OpenSession(config *SessionConfig) (*Session, error) {
-	cfgC := configC(config)
+func (c *Connection) OpenSession(cfg ...SessionCfg) (*Session, error) {
+	cfgC := configC(cfg)
 	defer C.free(unsafe.Pointer(cfgC))
 
 	s := &Session{}

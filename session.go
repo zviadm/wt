@@ -71,25 +71,26 @@ type Session struct {
 }
 
 func (s *Session) Close() error {
-	if r := C.wt_session_close(s.s, nil); r != 0 {
+	r := C.wt_session_close(s.s, nil)
+	s.s = nil
+	if r != 0 {
 		return wtError(r)
 	}
-	s.s = nil
 	return nil
 }
 
-func (s *Session) IsClosed() bool {
+func (s *Session) Closed() bool {
 	return s.s == nil
 }
 
-type DataSourceConfig struct {
+type DataSourceCfg struct {
 	BlockCompressor string
 }
 
-func (s *Session) Create(name string, config *DataSourceConfig) error {
+func (s *Session) Create(name string, cfg ...DataSourceCfg) error {
 	nameC := C.CString(name)
 	defer C.free(unsafe.Pointer(nameC))
-	cfgC := configC(config)
+	cfgC := configC(cfg)
 	defer C.free(unsafe.Pointer(cfgC))
 
 	if r := C.wt_session_create(s.s, nameC, cfgC); r != 0 {
@@ -98,49 +99,47 @@ func (s *Session) Create(name string, config *DataSourceConfig) error {
 	return nil
 }
 
-type DropConfig struct {
+type DropCfg struct {
 	Force       wtBool
 	RemoveFiles wtBool
 }
 
-func (s *Session) Drop(name string, config *DropConfig) error {
+func (s *Session) Drop(name string, cfg ...DropCfg) error {
 	nameC := C.CString(name)
 	defer C.free(unsafe.Pointer(nameC))
-	cfgC := configC(config)
+	cfgC := configC(cfg)
 	defer C.free(unsafe.Pointer(cfgC))
 
 	r := C.wt_session_drop(s.s, nameC, cfgC)
 	return wtError(r)
 }
 
-type MutationConfig struct {
+type MutateCfg struct {
 	Overwrite wtBool
 	Bulk      wtBool
 	raw       wtBool
 }
 
-func (s *Session) Mutate(uri string, config *MutationConfig) (*Mutator, error) {
+func (s *Session) Mutate(uri string, cfg ...MutateCfg) (*Mutator, error) {
 	uriC := C.CString(uri)
 	defer C.free(unsafe.Pointer(uriC))
 	var cfgC *C.char
-	if config != nil {
-		config.raw = True // Always reading in "raw" mode.
-		cfgC = configC(config)
+	if len(cfg) >= 1 {
+		cfg[0].raw = True
+		cfgC = configC(cfg)
 	} else {
 		cfgC = C.CString("raw")
 	}
 	defer C.free(unsafe.Pointer(cfgC))
-
 	c := &Mutator{}
 	r := C.wt_session_open_cursor(s.s, uriC, nil, cfgC, &c.c)
 	return c, wtError(r)
 }
 
-// TODO: scan config?
 func (s *Session) Scan(uri string) (*Scanner, error) {
 	uriC := C.CString(uri)
 	defer C.free(unsafe.Pointer(uriC))
-	cfgC := C.CString("raw")
+	cfgC := C.CString("raw,readonly")
 	defer C.free(unsafe.Pointer(cfgC))
 
 	c := &Scanner{}
@@ -165,18 +164,20 @@ func (s *Session) LogFlush(sync SyncMode) error {
 	return nil
 }
 
-type TxConfig struct {
+type TxCfg struct {
 	Sync wtBool
 }
 
-func (s *Session) TxBegin(config *TxConfig) error {
-	cfgC := configC(config)
+func (s *Session) TxBegin(cfg ...TxCfg) error {
+	cfgC := configC(cfg)
 	defer C.free(unsafe.Pointer(cfgC))
 	r := C.wt_session_begin_transaction(s.s, cfgC)
 	s.inTx = (r == 0)
 	return wtError(r)
 }
-func (s *Session) TxCommit() error {
+func (s *Session) TxCommit(cfg ...TxCfg) error {
+	cfgC := configC(cfg)
+	defer C.free(unsafe.Pointer(cfgC))
 	r := C.wt_session_commit_transaction(s.s, nil)
 	s.inTx = false
 	return wtError(r)

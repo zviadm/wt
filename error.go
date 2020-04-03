@@ -6,14 +6,18 @@ package wt
 */
 import "C"
 
-import (
-	"fmt"
-)
-
 type ErrorCode int
 
 const (
-	ErrNotFound ErrorCode = C.WT_NOTFOUND
+	ErrRollback        ErrorCode = C.WT_ROLLBACK
+	ErrDuplicateKey    ErrorCode = C.WT_DUPLICATE_KEY
+	ErrError           ErrorCode = C.WT_ERROR
+	ErrNotFound        ErrorCode = C.WT_NOTFOUND
+	ErrPanic           ErrorCode = C.WT_PANIC
+	ErrRunRecover      ErrorCode = C.WT_RUN_RECOVERY
+	ErrCacheAll        ErrorCode = C.WT_CACHE_FULL
+	ErrPrepareConflict ErrorCode = C.WT_PREPARE_CONFLICT
+	ErrTrySalvage      ErrorCode = C.WT_TRY_SALVAGE
 )
 
 type Error struct {
@@ -21,18 +25,13 @@ type Error struct {
 }
 
 func (e *Error) Error() string {
-	switch e.Code {
-	case ErrNotFound:
-		return "WT_NOTFOUND"
-	default:
-		return fmt.Sprintf("WTError: %d", e.Code)
-	}
+	return C.GoString(C.wiredtiger_strerror(C.int(e.Code)))
 }
 
 func ErrCode(e error) ErrorCode {
 	wtErr, ok := e.(*Error)
 	if !ok {
-		return -1
+		return ErrError
 	}
 	return wtErr.Code
 }

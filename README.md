@@ -1,7 +1,13 @@
-# wt
-GoLang bindings for WiredTiger storage engine
+# wt - GoLang bindings for WiredTiger
 
-# Building
-WiredTiger is assumed to be built with static libraries enabled and built-in support for snappy.
-`./configure -with-builtins=snappy -disable-shared`
+These bindings mainly focus on performance and simplicity. Target is to
+support WiredTiger only as a simple transactional key/value store.
+
+WiredTiger is a high quality, production ready storage engine. It also has extensive
+in-depth documentation: http://source.wiredtiger.com/3.2.1/index.html. If you have a need
+for a storage engine, next time give WiredTiger a shot instead of RocksDB.
+
+# Testing
+
+TODO(zviad): describe how to test using `docker` and `tt`.
 
