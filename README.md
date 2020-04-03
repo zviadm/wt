@@ -11,11 +11,11 @@ If you have a need for a storage engine, give WiredTiger a shot instead of Rocks
 
 # Testing
 
-Uses `tt` tool for testing. Note that first run of the tests will take a long time since
+Uses [tt](https://github.com/zviadm/tt) for testing. Note that first run of the tests will take a long time since
 WiredTiger libraries take a long time to build from scratch.
 
 ```
 $: go install github.com/zviadm/tt/tt
-$: tt ./...
+$: tt -v ./...
 ```
 
