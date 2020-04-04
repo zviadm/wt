@@ -35,6 +35,7 @@ type ConnCfg struct {
 	Log             string
 	TransactionSync string
 	SessionMax      int
+	CacheSize       int
 }
 
 func Open(path string, cfg ...ConnCfg) (*Connection, error) {
