@@ -1,5 +1,5 @@
 # wt - GoLang bindings for WiredTiger
-[![Build Status](https://travis-ci.org/zviadm/wt.svg?branch=master)](https://travis-ci.org/zviadm/wt)
+[![Build Status](https://travis-ci.com/zviadm/wt.svg?branch=master)](https://travis-ci.com/zviadm/wt)
 
 These bindings mainly focus on performance and simplicity. Target is to
 support WiredTiger only as a simple transactional key/value store.
