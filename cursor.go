@@ -142,6 +142,10 @@ func (c *Scanner) UnsafeKey() ([]byte, error) {
 	}
 	return (*[goArrayMaxLen]byte)(unsafe.Pointer(item.data))[:item.size:item.size], nil
 }
+func (c *Scanner) Key() ([]byte, error) {
+	r, err := c.UnsafeKey()
+	return copyBuffer(r), err
+}
 
 // UnsafeValue() returns the current value referenced by the cursor. The memory
 // is invalid after the next operation on the cursor.
@@ -151,6 +155,10 @@ func (c *Scanner) UnsafeValue() ([]byte, error) {
 		return nil, wtError(r)
 	}
 	return (*[goArrayMaxLen]byte)(unsafe.Pointer(item.data))[:item.size:item.size], nil
+}
+func (c *Scanner) Value() ([]byte, error) {
+	r, err := c.UnsafeValue()
+	return copyBuffer(r), err
 }
 
 // TODO(zviad): `cgo` overhead is most noticable for Scan calls when doing a range scan
@@ -199,4 +207,25 @@ func (c *Scanner) ReadUnsafeValue(key []byte) ([]byte, error) {
 		return nil, err
 	}
 	return c.UnsafeValue()
+}
+
+// Reads value for a specific key. Resets cursors afterwards to keep it in clean state.
+func (c *Scanner) ReadValue(key []byte) ([]byte, error) {
+	r, err := c.ReadUnsafeValue(key)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.Reset(); err != nil {
+		return nil, err
+	}
+	return copyBuffer(r), nil
+}
+
+func copyBuffer(in []byte) []byte {
+	if len(in) == 0 {
+		return nil
+	}
+	r := make([]byte, len(in))
+	copy(r, in)
+	return r
 }
