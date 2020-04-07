@@ -76,17 +76,14 @@ func (c *cursor) Reset() error {
 	return wtError(r)
 }
 func (c *cursor) setKey(key []byte) {
-	if len(key) > 0 {
-		C.wt_cursor_set_key(c.c, unsafe.Pointer(&key[0]), C.size_t(len(key)))
-	} else {
-		C.wt_cursor_set_key(c.c, nil, 0)
-	}
+	// Keys can't be empty.
+	C.wt_cursor_set_key(c.c, unsafe.Pointer(&key[0]), C.size_t(len(key)))
 }
 func (c *cursor) setValue(value []byte) {
-	if len(value) > 0 {
-		C.wt_cursor_set_value(c.c, unsafe.Pointer(&value[0]), C.size_t(len(value)))
-	} else {
+	if len(value) == 0 {
 		C.wt_cursor_set_value(c.c, nil, 0)
+	} else {
+		C.wt_cursor_set_value(c.c, unsafe.Pointer(&value[0]), C.size_t(len(value)))
 	}
 }
 
@@ -136,9 +133,6 @@ func (c *Scanner) UnsafeKey() ([]byte, error) {
 	if r := C.wt_cursor_get_key(c.c, &item); r != 0 {
 		return nil, wtError(r)
 	}
-	if item.size == 0 {
-		return nil, nil
-	}
 	return (*[goArrayMaxLen]byte)(unsafe.Pointer(item.data))[:item.size:item.size], nil
 }
 func (c *Scanner) Key() ([]byte, error) {
@@ -152,6 +146,9 @@ func (c *Scanner) UnsafeValue() ([]byte, error) {
 	var item C.WT_ITEM
 	if r := C.wt_cursor_get_value(c.c, &item); r != 0 {
 		return nil, wtError(r)
+	}
+	if item.size == 0 {
+		return nil, nil
 	}
 	return (*[goArrayMaxLen]byte)(unsafe.Pointer(item.data))[:item.size:item.size], nil
 }

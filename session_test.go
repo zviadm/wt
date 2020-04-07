@@ -54,6 +54,17 @@ func TestSession(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, []byte("testvalue2"), v)
 
+	err = m.Insert([]byte("testempty1"), []byte{})
+	require.NoError(t, err)
+	err = m.Insert([]byte("testempty2"), nil)
+	require.NoError(t, err)
+	v, err = scan.ReadUnsafeValue([]byte("testempty1"))
+	require.NoError(t, err)
+	require.EqualValues(t, []byte(nil), v)
+	v, err = scan.ReadUnsafeValue([]byte("testempty2"))
+	require.NoError(t, err)
+	require.EqualValues(t, []byte(nil), v)
+
 	err = s.Drop("table:test_table")
 	require.Error(t, err) // can't drop until cursors are closed.
 	require.NoError(t, m.Close())
