@@ -100,10 +100,9 @@ type Mutator struct {
 func (c *Mutator) Insert(key, value []byte) error {
 	c.setKey(key)
 	c.setValue(value)
-	if r := C.wt_cursor_insert(c.c); r != 0 {
-		return wtError(r)
-	}
-	return c.Reset()
+	// Cursor automatically gets reset when using `insert`.
+	r := C.wt_cursor_insert(c.c)
+	return wtError(r)
 }
 func (c *Mutator) Update(key, value []byte) error {
 	c.setKey(key)
