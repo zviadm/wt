@@ -12,12 +12,14 @@ import (
 
 type wtBool int
 
+// Boolean configuration values.
 const (
 	Default wtBool = 0
 	False   wtBool = 1
 	True    wtBool = 2
 )
 
+// Bool converts regular bool type to wtBool.
 func Bool(v bool) wtBool {
 	if v {
 		return True
@@ -68,7 +70,7 @@ func configC(config interface{}) *C.char {
 			}
 			vvv := vv.Int()
 			if vf.Type.Name() == "wtBool" {
-				vvv -= 1
+				vvv--
 			}
 			cfgParts = append(cfgParts, name+"="+strconv.Itoa(int(vvv)))
 			break

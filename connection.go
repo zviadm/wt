@@ -26,12 +26,15 @@ import (
 	"unsafe"
 )
 
+// Connection is a wrapper for WT_CONNECTION class.
 type Connection struct {
 	c *C.WT_CONNECTION
 }
 
+// Statistics configuration options enum.
 type Statistics string
 
+// Statistics configuration options.
 const (
 	StatsAll       Statistics = "all"
 	StatsCacheWalk Statistics = "cache_walk"
@@ -41,6 +44,7 @@ const (
 	StatsTreeWalk  Statistics = "tree_walk"
 )
 
+// ConnCfg mirrors options for wiredtiger_open call.
 type ConnCfg struct {
 	CacheSize       int
 	Create          wtBool
@@ -51,6 +55,7 @@ type ConnCfg struct {
 	TransactionSync string
 }
 
+// Open performs wiredtiger_open call.
 func Open(path string, cfg ...ConnCfg) (*Connection, error) {
 	pathC := C.CString(path)
 	defer C.free(unsafe.Pointer(pathC))
@@ -64,10 +69,12 @@ func Open(path string, cfg ...ConnCfg) (*Connection, error) {
 	return c, nil
 }
 
+// ConnCloseCfg mirrors options for WT_CONNECTION::close call.
 type ConnCloseCfg struct {
 	LeakMemory wtBool
 }
 
+// Close performs WT_CONNECTION::close call.
 func (c *Connection) Close(cfg ...ConnCloseCfg) error {
 	cfgC := configC(cfg)
 	defer C.free(unsafe.Pointer(cfgC))
@@ -78,10 +85,12 @@ func (c *Connection) Close(cfg ...ConnCloseCfg) error {
 	return nil
 }
 
+// SessionCfg mirrors options for WT_CONNECTION::open_session call.
 type SessionCfg struct {
 	Isolation string
 }
 
+// OpenSession performs WT_CONNECTION::open_session call.
 func (c *Connection) OpenSession(cfg ...SessionCfg) (*Session, error) {
 	cfgC := configC(cfg)
 	defer C.free(unsafe.Pointer(cfgC))

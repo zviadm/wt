@@ -6,8 +6,10 @@ package wt
 */
 import "C"
 
+// ErrorCode enum describes WiredTiger-specific error codes.
 type ErrorCode int
 
+// WiredTiger specific error codes.
 const (
 	ErrRollback        ErrorCode = C.WT_ROLLBACK
 	ErrDuplicateKey    ErrorCode = C.WT_DUPLICATE_KEY
@@ -20,6 +22,7 @@ const (
 	ErrTrySalvage      ErrorCode = C.WT_TRY_SALVAGE
 )
 
+// Error describes WiredTiger error.
 type Error struct {
 	Code ErrorCode
 }
@@ -28,6 +31,8 @@ func (e *Error) Error() string {
 	return C.GoString(C.wiredtiger_strerror(C.int(e.Code)))
 }
 
+// ErrCode extracts WiredTiger error code from any error. If input is not
+// WiredTiger error, it will return ErrError.
 func ErrCode(e error) ErrorCode {
 	wtErr, ok := e.(*Error)
 	if !ok {

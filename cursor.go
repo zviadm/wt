@@ -62,6 +62,20 @@ import (
 	"unsafe"
 )
 
+const (
+	// Go limits arrays to a length that will fit in a (signed) 32-bit integer. This is used
+	// to read cursor values without making copies.
+	goArrayMaxLen = 0x7fffffff
+)
+
+// HAX taken from runtime/stubs.go file. Without this trick, unsafe.Pointer calls in
+// cursor_set_key & cursor_set_value calls would cause an unnecessary memory allocation.
+//go:nosplit
+func noescape(p unsafe.Pointer) unsafe.Pointer {
+	x := uintptr(p)
+	return unsafe.Pointer(x ^ 0)
+}
+
 type cursor struct {
 	c *C.WT_CURSOR
 }
@@ -75,73 +89,75 @@ func (c *cursor) Reset() error {
 	r := C.wt_cursor_reset(c.c)
 	return wtError(r)
 }
-func (c *cursor) setKey(key []byte) {
-	// Keys can't be empty.
-	C.wt_cursor_set_key(c.c, unsafe.Pointer(&key[0]), C.size_t(len(key)))
-}
-func (c *cursor) setValue(value []byte) {
-	if len(value) == 0 {
-		C.wt_cursor_set_value(c.c, nil, 0)
-	} else {
-		C.wt_cursor_set_value(c.c, unsafe.Pointer(&value[0]), C.size_t(len(value)))
-	}
-}
 
-// Mutator exposes apis in a way to avoid any memory copies while inserting data.
-// After each insert, cursor is immediatelly reset making it safe to directly pass in the
-// pointers to the Go byte slices.
+// Mutator exposes WT_CURSOR mutation apis in a way that avoids any memory copies while
+// inserting data. After each operation, cursor is immediatelly reset, making it safe to
+// directly pass in Go byte slices.
 type Mutator struct {
 	cursor
 }
 
+// Insert performs WT_CURSOR::insert call.
 func (c *Mutator) Insert(key, value []byte) error {
-	c.setKey(key)
-	c.setValue(value)
+	C.wt_cursor_set_key(c.c, noescape(unsafe.Pointer(&key[0])), C.size_t(len(key)))
+	if len(value) == 0 {
+		C.wt_cursor_set_value(c.c, nil, 0)
+	} else {
+		C.wt_cursor_set_value(c.c, noescape(unsafe.Pointer(&value[0])), C.size_t(len(value)))
+	}
 	// Cursor automatically gets reset when using `insert`.
 	r := C.wt_cursor_insert(c.c)
 	return wtError(r)
 }
+
+// Update performs WT_CURSOR::update call.
 func (c *Mutator) Update(key, value []byte) error {
-	c.setKey(key)
-	c.setValue(value)
+	C.wt_cursor_set_key(c.c, noescape(unsafe.Pointer(&key[0])), C.size_t(len(key)))
+	if len(value) == 0 {
+		C.wt_cursor_set_value(c.c, nil, 0)
+	} else {
+		C.wt_cursor_set_value(c.c, noescape(unsafe.Pointer(&value[0])), C.size_t(len(value)))
+	}
 	if r := C.wt_cursor_update(c.c); r != 0 {
 		return wtError(r)
 	}
 	return c.Reset()
 }
+
+// Remove performs WT_CURSOR::remove call.
 func (c *Mutator) Remove(key []byte) error {
-	c.setKey(key)
+	C.wt_cursor_set_key(c.c, noescape(unsafe.Pointer(&key[0])), C.size_t(len(key)))
 	if r := C.wt_cursor_remove(c.c); r != 0 {
 		return wtError(r)
 	}
 	return c.Reset()
 }
 
+// Scanner exposes WT_CURSOR read apis.
 type Scanner struct {
 	cursor
 }
 
-const (
-	// Go limits arrays to a length that will fit in a (signed) 32-bit integer.
-	goArrayMaxLen = 0x7fffffff
-)
-
-// UnsafeKey() returns the current key referenced by the cursor. The memory
-// is invalid after the next operation on the cursor.
+// UnsafeKey returns date returned by WT_CURSOR::get_key call. This call doesn't copy the data
+// that it reads from `C` memory. Thus, the byte slice returned by this function is only valid until
+// next operation on the cursor, or until session is closed.
 func (c *Scanner) UnsafeKey() ([]byte, error) {
 	var item C.WT_ITEM
 	if r := C.wt_cursor_get_key(c.c, &item); r != 0 {
 		return nil, wtError(r)
 	}
-	return (*[goArrayMaxLen]byte)(unsafe.Pointer(item.data))[:item.size:item.size], nil
+	return (*[goArrayMaxLen]byte)(item.data)[:item.size:item.size], nil
 }
+
+// Key returns copy of data returned by WT_CURSOR::get_key call.
 func (c *Scanner) Key() ([]byte, error) {
 	r, err := c.UnsafeKey()
 	return copyBuffer(r), err
 }
 
-// UnsafeValue() returns the current value referenced by the cursor. The memory
-// is invalid after the next operation on the cursor.
+// UnsafeValue returns date returned by WT_CURSOR::get_value call. This call doesn't copy the data
+// that it reads from `C` memory. Thus, the byte slice returned by this function is only valid until
+// next operation on the cursor, or until session is closed.
 func (c *Scanner) UnsafeValue() ([]byte, error) {
 	var item C.WT_ITEM
 	if r := C.wt_cursor_get_value(c.c, &item); r != 0 {
@@ -152,38 +168,48 @@ func (c *Scanner) UnsafeValue() ([]byte, error) {
 	}
 	return (*[goArrayMaxLen]byte)(unsafe.Pointer(item.data))[:item.size:item.size], nil
 }
+
+// Value returns copy of data returned by WT_CURSOR::get_value call.
 func (c *Scanner) Value() ([]byte, error) {
 	r, err := c.UnsafeValue()
 	return copyBuffer(r), err
 }
 
+// Next performs WT_CURSOR::next call.
 // TODO(zviad): `cgo` overhead is most noticable for Scan calls when doing a range scan
 // using next/prev. Might need to change the API to do bigger batch processing directly in C.
 func (c *Scanner) Next() error {
 	r := C.wt_cursor_next(c.c)
 	return wtError(r)
 }
+
+// Prev performs WT_CURSOR::prev call.
 func (c *Scanner) Prev() error {
 	r := C.wt_cursor_prev(c.c)
 	return wtError(r)
 }
+
+// Search performs WT_CURSOR::search call.
 func (c *Scanner) Search(key []byte) error {
-	c.setKey(key)
+	C.wt_cursor_set_key(c.c, noescape(unsafe.Pointer(&key[0])), C.size_t(len(key)))
 	r := C.wt_cursor_search(c.c)
 	return wtError(r)
 }
 
+// NearMatchType describes type of match that is found with SearchNear call.
 type NearMatchType int
 
+// Match types that SearchNear call can return.
 const (
 	MatchedExact   NearMatchType = 0
 	MatchedSmaller NearMatchType = -1
 	MatchedLarger  NearMatchType = 1
 )
 
+// SearchNear performs WT_CURSOR::search_near call.
 func (c *Scanner) SearchNear(key []byte) (NearMatchType, error) {
 	var exact C.int
-	c.setKey(key)
+	C.wt_cursor_set_key(c.c, noescape(unsafe.Pointer(&key[0])), C.size_t(len(key)))
 	if r := C.wt_cursor_search_near(c.c, &exact); r != 0 {
 		return 0, wtError(r)
 	}
@@ -196,8 +222,8 @@ func (c *Scanner) SearchNear(key []byte) (NearMatchType, error) {
 	}
 }
 
-// Reads value for a specific key. Similar to UnsafeValue(), value returned becomes invalid
-// after another operation is performed on the cursor, thus it needs to be consumed/copied immediatelly.
+// ReadUnsafeValue returns value for a specific key. Similar to UnsafeValue, it doesn't copy the data
+// from `C` memory, thus it is only valid until next operation on cursor (or until session is closed).
 func (c *Scanner) ReadUnsafeValue(key []byte) ([]byte, error) {
 	if err := c.Search(key); err != nil {
 		return nil, err
@@ -205,7 +231,8 @@ func (c *Scanner) ReadUnsafeValue(key []byte) ([]byte, error) {
 	return c.UnsafeValue()
 }
 
-// Reads value for a specific key. Resets cursors afterwards to keep it in clean state.
+// ReadValue returns copy of value for a specific key. Resets cursor afterwards to
+// keep it in a clean state.
 func (c *Scanner) ReadValue(key []byte) ([]byte, error) {
 	r, err := c.ReadUnsafeValue(key)
 	if err != nil {
