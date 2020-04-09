@@ -64,22 +64,30 @@ func configC(config interface{}) *C.char {
 		switch vv.Kind() {
 		case reflect.Int:
 			if vv.Int() == 0 {
-				continue
+				break
 			}
 			vvv := vv.Int()
 			if vf.Type.Name() == "wtBool" {
 				vvv -= 1
 			}
 			cfgParts = append(cfgParts, name+"="+strconv.Itoa(int(vvv)))
-			continue
+			break
 		case reflect.String:
 			vvv := vv.String()
 			if vvv == "" {
-				continue
+				break
 			}
 			vvv = strings.ReplaceAll(vvv, "\"", "\\\"")
 			cfgParts = append(cfgParts, name+"=\""+vvv+"\"")
-			continue
+			break
+		case reflect.Slice:
+			vvv := make([]string, vv.Len())
+			for idx := range vvv {
+				vvv[idx] = vv.Index(idx).String()
+				vvv[idx] = strings.ReplaceAll(vvv[idx], "\"", "\\\"")
+			}
+			cfgParts = append(cfgParts, name+"=("+strings.Join(vvv, ",")+")")
+			break
 		default:
 			panic(fmt.Sprintf("unsupported type: %s:%s", vf.Name, vv.Kind()))
 		}

@@ -30,12 +30,25 @@ type Connection struct {
 	c *C.WT_CONNECTION
 }
 
+type Statistics string
+
+const (
+	StatsAll       Statistics = "all"
+	StatsCacheWalk Statistics = "cache_walk"
+	StatsClear     Statistics = "clear"
+	StatsFast      Statistics = "fast"
+	StatsNone      Statistics = "none"
+	StatsTreeWalk  Statistics = "tree_walk"
+)
+
 type ConnCfg struct {
+	CacheSize       int
 	Create          wtBool
 	Log             string
-	TransactionSync string
 	SessionMax      int
-	CacheSize       int
+	Statistics      []Statistics
+	StatisticsLog   string
+	TransactionSync string
 }
 
 func Open(path string, cfg ...ConnCfg) (*Connection, error) {

@@ -17,8 +17,10 @@ func TestOpen(t *testing.T) {
 	require.Error(t, err)
 
 	c, err := Open(dbDir, ConnCfg{
-		Create: True,
-		Log:    "enabled,compressor=snappy",
+		Create:        True,
+		Log:           "enabled,compressor=snappy",
+		Statistics:    []Statistics{StatsAll, StatsClear},
+		StatisticsLog: "wait=30",
 	})
 	require.NoError(t, err)
 	err = c.Close()
