@@ -12,27 +12,48 @@ int wt_cursor_reset(WT_CURSOR *cursor) {
     return cursor->reset(cursor);
 }
 
-void wt_cursor_set_key(WT_CURSOR *cursor, const void *data, size_t size) {
+void _cursor_set_key(WT_CURSOR *cursor, const void *data, size_t size) {
 	WT_ITEM item;
 	item.data = data;
 	item.size = size;
 	return cursor->set_key(cursor, &item);
 }
-void wt_cursor_set_value(WT_CURSOR *cursor, const void *data, size_t size) {
+void _cursor_set_value(WT_CURSOR *cursor, const void *data, size_t size) {
 	WT_ITEM item;
 	item.data = data;
 	item.size = size;
-    return cursor->set_value(cursor, &item);
+	return cursor->set_value(cursor, &item);
 }
 
-int wt_cursor_insert(WT_CURSOR *cursor) {
+int wt_cursor_insert(
+	WT_CURSOR *cursor,
+	const void *key, size_t key_size,
+	const void *value, size_t value_size) {
+	_cursor_set_key(cursor, key, key_size);
+	_cursor_set_value(cursor, value, value_size);
     return cursor->insert(cursor);
 }
-int wt_cursor_update(WT_CURSOR *cursor) {
-    return cursor->update(cursor);
+int wt_cursor_update(
+	WT_CURSOR *cursor,
+	const void *key, size_t key_size,
+	const void *value, size_t value_size) {
+	_cursor_set_key(cursor, key, key_size);
+	_cursor_set_value(cursor, value, value_size);
+    int r = cursor->update(cursor);
+	if (r != 0) {
+		return r;
+	}
+	return cursor->reset(cursor);
 }
-int wt_cursor_remove(WT_CURSOR *cursor) {
-    return cursor->remove(cursor);
+int wt_cursor_remove(
+	WT_CURSOR *cursor,
+	const void *key, size_t key_size) {
+	_cursor_set_key(cursor, key, key_size);
+	int r = cursor->remove(cursor);
+	if (r != 0) {
+		return r;
+	}
+	return cursor->reset(cursor);
 }
 
 int wt_cursor_get_key(WT_CURSOR *cursor, WT_ITEM *item) {
@@ -48,10 +69,17 @@ int wt_cursor_next(WT_CURSOR *cursor) {
 int wt_cursor_prev(WT_CURSOR *cursor) {
     return cursor->prev(cursor);
 }
-int wt_cursor_search(WT_CURSOR *cursor) {
+int wt_cursor_search(
+	WT_CURSOR *cursor,
+	const void *key, size_t key_size) {
+	_cursor_set_key(cursor, key, key_size);
     return cursor->search(cursor);
 }
-int wt_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
+int wt_cursor_search_near(
+	WT_CURSOR *cursor,
+	const void *key, size_t key_size,
+	int *exactp) {
+	_cursor_set_key(cursor, key, key_size);
     return cursor->search_near(cursor, exactp);
 }
 
@@ -67,14 +95,6 @@ const (
 	// to read cursor values without making copies.
 	goArrayMaxLen = 0x7fffffff
 )
-
-// HAX taken from runtime/stubs.go file. Without this trick, unsafe.Pointer calls in
-// cursor_set_key & cursor_set_value calls would cause an unnecessary memory allocation.
-//go:nosplit
-func noescape(p unsafe.Pointer) unsafe.Pointer {
-	x := uintptr(p)
-	return unsafe.Pointer(x ^ 0)
-}
 
 type cursor struct {
 	c *C.WT_CURSOR
@@ -99,38 +119,33 @@ type Mutator struct {
 
 // Insert performs WT_CURSOR::insert call.
 func (c *Mutator) Insert(key, value []byte) error {
-	C.wt_cursor_set_key(c.c, noescape(unsafe.Pointer(&key[0])), C.size_t(len(key)))
-	if len(value) == 0 {
-		C.wt_cursor_set_value(c.c, nil, 0)
-	} else {
-		C.wt_cursor_set_value(c.c, noescape(unsafe.Pointer(&value[0])), C.size_t(len(value)))
+	keyP := unsafe.Pointer(&key[0]) // Defining here, avoids allocation :O
+	var valueP unsafe.Pointer
+	if len(value) > 0 {
+		valueP = unsafe.Pointer(&value[0])
 	}
-	// Cursor automatically gets reset when using `insert`.
-	r := C.wt_cursor_insert(c.c)
+	r := C.wt_cursor_insert(
+		c.c, keyP, C.size_t(len(key)), valueP, C.size_t(len(value)))
 	return wtError(r)
 }
 
 // Update performs WT_CURSOR::update call.
 func (c *Mutator) Update(key, value []byte) error {
-	C.wt_cursor_set_key(c.c, noescape(unsafe.Pointer(&key[0])), C.size_t(len(key)))
-	if len(value) == 0 {
-		C.wt_cursor_set_value(c.c, nil, 0)
-	} else {
-		C.wt_cursor_set_value(c.c, noescape(unsafe.Pointer(&value[0])), C.size_t(len(value)))
+	keyP := unsafe.Pointer(&key[0])
+	var valueP unsafe.Pointer
+	if len(value) > 0 {
+		valueP = unsafe.Pointer(&value[0])
 	}
-	if r := C.wt_cursor_update(c.c); r != 0 {
-		return wtError(r)
-	}
-	return c.Reset()
+	r := C.wt_cursor_update(
+		c.c, keyP, C.size_t(len(key)), valueP, C.size_t(len(value)))
+	return wtError(r)
 }
 
 // Remove performs WT_CURSOR::remove call.
 func (c *Mutator) Remove(key []byte) error {
-	C.wt_cursor_set_key(c.c, noescape(unsafe.Pointer(&key[0])), C.size_t(len(key)))
-	if r := C.wt_cursor_remove(c.c); r != 0 {
-		return wtError(r)
-	}
-	return c.Reset()
+	keyP := unsafe.Pointer(&key[0])
+	r := C.wt_cursor_remove(c.c, keyP, C.size_t(len(key)))
+	return wtError(r)
 }
 
 // Scanner exposes WT_CURSOR read apis.
@@ -191,8 +206,8 @@ func (c *Scanner) Prev() error {
 
 // Search performs WT_CURSOR::search call.
 func (c *Scanner) Search(key []byte) error {
-	C.wt_cursor_set_key(c.c, noescape(unsafe.Pointer(&key[0])), C.size_t(len(key)))
-	r := C.wt_cursor_search(c.c)
+	keyP := unsafe.Pointer(&key[0])
+	r := C.wt_cursor_search(c.c, keyP, C.size_t(len(key)))
 	return wtError(r)
 }
 
@@ -209,8 +224,9 @@ const (
 // SearchNear performs WT_CURSOR::search_near call.
 func (c *Scanner) SearchNear(key []byte) (NearMatchType, error) {
 	var exact C.int
-	C.wt_cursor_set_key(c.c, noescape(unsafe.Pointer(&key[0])), C.size_t(len(key)))
-	if r := C.wt_cursor_search_near(c.c, &exact); r != 0 {
+	keyP := unsafe.Pointer(&key[0])
+	r := C.wt_cursor_search_near(c.c, keyP, C.size_t(len(key)), &exact)
+	if r != 0 {
 		return 0, wtError(r)
 	}
 	if exact < 0 {

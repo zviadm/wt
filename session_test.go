@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"strconv"
 	"testing"
 
@@ -119,7 +120,7 @@ func TestSessionTxs(t *testing.T) {
 	require.EqualValues(t, []byte("testvalue1"), v)
 }
 
-// BenchmarkCursorInsert-4 - 200097	- 7452 ns/op - 0 B/op - 0 allocs/op
+// BenchmarkCursorInsert-4 - 272791 - 4897 ns/op - 1.00 cgocalls/op - 0 B/op - 0 allocs/op
 // This benchmark mainly exists to confirm that Insert call doesn't do any
 // memory allocations.
 func BenchmarkCursorInsert(b *testing.B) {
@@ -144,6 +145,7 @@ func BenchmarkCursorInsert(b *testing.B) {
 	insertK := []byte("testkeyXXXXXXXX")
 	insertV := []byte("testvalXXXXXXXX")
 
+	cgoCalls0 := runtime.NumCgoCall()
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
@@ -154,9 +156,10 @@ func BenchmarkCursorInsert(b *testing.B) {
 			b.Fatal(err) // Never use `require` library in benchmark hot path.
 		}
 	}
+	b.ReportMetric(float64(runtime.NumCgoCall()-cgoCalls0)/float64(b.N), "cgocalls/op")
 }
 
-// BenchmarkCursorScan-4 - 1530163 - 681 ns/op - 96 B/op - 2 allocs/op
+// BenchmarkCursorScan-4 - 1384462 - 781 ns/op - 3.00 cgocalls/op - 96 B/op - 2 allocs/op
 func BenchmarkCursorScan(b *testing.B) {
 	dbDir, err := ioutil.TempDir("", "wt_")
 	require.NoError(b, err)
@@ -189,6 +192,7 @@ func BenchmarkCursorScan(b *testing.B) {
 	scan, err := s.Scan("table:test_table")
 	require.NoError(b, err)
 
+	cgoCalls0 := runtime.NumCgoCall()
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
@@ -211,4 +215,5 @@ func BenchmarkCursorScan(b *testing.B) {
 			scan.Reset() // Reset to start reading from the start again.
 		}
 	}
+	b.ReportMetric(float64(runtime.NumCgoCall()-cgoCalls0)/float64(b.N), "cgocalls/op")
 }
