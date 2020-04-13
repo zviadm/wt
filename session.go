@@ -6,57 +6,55 @@ package wt
 
 // Expose WT methods accessed through function pointers:
 int wt_session_close(
-	WT_SESSION *session,
-	const char *config
+	WT_SESSION *session
 	) {
-    return session->close(session, config);
+    return session->close(session, NULL);
 }
 int wt_session_create(
 	WT_SESSION *session,
 	const char *name,
-	const char *config
+	_GoString_ config
 	) {
-    return session->create(session, name, config);
+    return session->create(session, name, _GoStringPtr(config));
 }
 int wt_session_drop(
 	WT_SESSION *session,
 	const char *name,
-	const char *config
+	_GoString_ config
 	) {
-    return session->drop(session, name, config);
+    return session->drop(session, name, _GoStringPtr(config));
 }
 int wt_session_open_cursor(
 	WT_SESSION *session,
 	const char *uri,
 	WT_CURSOR *to_dup,
-	const char *config,
+	_GoString_ config,
 	WT_CURSOR **cursorp
 	) {
-    return session->open_cursor(session, uri, to_dup, config, cursorp);
+    return session->open_cursor(session, uri, to_dup, _GoStringPtr(config), cursorp);
 }
 int wt_session_log_flush(
 	WT_SESSION *session,
-	const char *config
+	_GoString_ config
 	) {
-    return session->log_flush(session, config);
+    return session->log_flush(session, _GoStringPtr(config));
 }
 int wt_session_begin_transaction(
 	WT_SESSION *session,
-	const char *config
+	_GoString_ config
 	) {
-    return session->begin_transaction(session, config);
+    return session->begin_transaction(session, _GoStringPtr(config));
 }
 int wt_session_commit_transaction(
 	WT_SESSION *session,
-	const char *config
+	_GoString_ config
 	) {
-    return session->commit_transaction(session, config);
+    return session->commit_transaction(session, _GoStringPtr(config));
 }
 int wt_session_rollback_transaction(
-	WT_SESSION *session,
-	const char *config
+	WT_SESSION *session
 	) {
-    return session->rollback_transaction(session, config);
+    return session->rollback_transaction(session, NULL);
 }
 */
 import "C"
@@ -73,7 +71,7 @@ type Session struct {
 
 // Close performs WT_SESSION:close call.
 func (s *Session) Close() error {
-	r := C.wt_session_close(s.s, nil)
+	r := C.wt_session_close(s.s)
 	s.s = nil
 	if r != 0 {
 		return wtError(r)
@@ -96,8 +94,6 @@ func (s *Session) Create(name string, cfg ...DataSourceCfg) error {
 	nameC := C.CString(name)
 	defer C.free(unsafe.Pointer(nameC))
 	cfgC := configC(cfg)
-	defer C.free(unsafe.Pointer(cfgC))
-
 	if r := C.wt_session_create(s.s, nameC, cfgC); r != 0 {
 		return wtError(r)
 	}
@@ -115,8 +111,6 @@ func (s *Session) Drop(name string, cfg ...DropCfg) error {
 	nameC := C.CString(name)
 	defer C.free(unsafe.Pointer(nameC))
 	cfgC := configC(cfg)
-	defer C.free(unsafe.Pointer(cfgC))
-
 	r := C.wt_session_drop(s.s, nameC, cfgC)
 	return wtError(r)
 }
@@ -133,14 +127,11 @@ type MutateCfg struct {
 func (s *Session) Mutate(uri string, cfg ...MutateCfg) (*Mutator, error) {
 	uriC := C.CString(uri)
 	defer C.free(unsafe.Pointer(uriC))
-	var cfgC *C.char
+	cfgC := "raw\x00"
 	if len(cfg) >= 1 {
 		cfg[0].raw = True
 		cfgC = configC(cfg)
-	} else {
-		cfgC = C.CString("raw")
 	}
-	defer C.free(unsafe.Pointer(cfgC))
 	c := &Mutator{}
 	r := C.wt_session_open_cursor(s.s, uriC, nil, cfgC, &c.c)
 	return c, wtError(r)
@@ -150,9 +141,7 @@ func (s *Session) Mutate(uri string, cfg ...MutateCfg) (*Mutator, error) {
 func (s *Session) Scan(uri string) (*Scanner, error) {
 	uriC := C.CString(uri)
 	defer C.free(unsafe.Pointer(uriC))
-	cfgC := C.CString("raw,readonly")
-	defer C.free(unsafe.Pointer(cfgC))
-
+	cfgC := "raw,readonly\x00"
 	c := &Scanner{}
 	r := C.wt_session_open_cursor(s.s, uriC, nil, cfgC, &c.c)
 	return c, wtError(r)
@@ -170,8 +159,7 @@ const (
 
 // LogFlush performs WT_SESSION::log_flush call.
 func (s *Session) LogFlush(sync SyncMode) error {
-	cfgC := C.CString("sync=" + string(sync))
-	defer C.free(unsafe.Pointer(cfgC))
+	cfgC := "sync=" + string(sync) + "\x00"
 	if r := C.wt_session_log_flush(s.s, cfgC); r != 0 {
 		return wtError(r)
 	}
@@ -187,7 +175,6 @@ type TxCfg struct {
 // TxBegin performs WT_SESSION::begin_transaction call.
 func (s *Session) TxBegin(cfg ...TxCfg) error {
 	cfgC := configC(cfg)
-	defer C.free(unsafe.Pointer(cfgC))
 	r := C.wt_session_begin_transaction(s.s, cfgC)
 	s.inTx = (r == 0)
 	return wtError(r)
@@ -196,15 +183,14 @@ func (s *Session) TxBegin(cfg ...TxCfg) error {
 // TxCommit performs WT_SESSION::commit_transaction call.
 func (s *Session) TxCommit(cfg ...TxCfg) error {
 	cfgC := configC(cfg)
-	defer C.free(unsafe.Pointer(cfgC))
-	r := C.wt_session_commit_transaction(s.s, nil)
+	r := C.wt_session_commit_transaction(s.s, cfgC)
 	s.inTx = false
 	return wtError(r)
 }
 
 // TxRollback performs WT_SESSION::rollback_transaction call.
 func (s *Session) TxRollback() error {
-	r := C.wt_session_rollback_transaction(s.s, nil)
+	r := C.wt_session_rollback_transaction(s.s)
 	s.inTx = false
 	return wtError(r)
 }

@@ -16,7 +16,7 @@ func TestSession(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dbDir)
 
-	c, err := Open(dbDir, ConnCfg{Create: True})
+	c, err := Open(dbDir, ConnCfg{Create: True, Log: "enabled"})
 	require.NoError(t, err)
 	defer func() { require.NoError(t, c.Close()) }()
 
@@ -67,6 +67,9 @@ func TestSession(t *testing.T) {
 	v, err = scan.ReadUnsafeValue([]byte("testempty2"))
 	require.NoError(t, err)
 	require.EqualValues(t, []byte(nil), v)
+
+	err = s.LogFlush(SyncOn) // Flush log for good measure.
+	require.NoError(t, err)
 
 	err = s.Drop("table:test_table")
 	require.Error(t, err) // can't drop until cursors are closed.

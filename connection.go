@@ -7,17 +7,17 @@ package wt
 // Expose WT methods accessed through function pointers:
 int wt_conn_close(
 	WT_CONNECTION* connection,
-	const char* config
+	_GoString_ config
 	) {
-    return connection->close(connection, config);
+    return connection->close(connection, _GoStringPtr(config));
 }
 int wt_conn_open_session(
 	WT_CONNECTION *connection,
 	WT_EVENT_HANDLER *event_handler,
-	const char *config,
+	_GoString_ config,
 	WT_SESSION **sessionp
 	) {
-    return connection->open_session(connection, event_handler, config, sessionp);
+    return connection->open_session(connection, event_handler, _GoStringPtr(config), sessionp);
 }
 */
 import "C"
@@ -59,9 +59,8 @@ type ConnCfg struct {
 func Open(path string, cfg ...ConnCfg) (*Connection, error) {
 	pathC := C.CString(path)
 	defer C.free(unsafe.Pointer(pathC))
-	cfgC := configC(cfg)
+	cfgC := C.CString(configC(cfg))
 	defer C.free(unsafe.Pointer(cfgC))
-
 	c := &Connection{}
 	if r := C.wiredtiger_open(pathC, nil, cfgC, &c.c); r != 0 {
 		return nil, wtError(r)
@@ -77,7 +76,6 @@ type ConnCloseCfg struct {
 // Close performs WT_CONNECTION::close call.
 func (c *Connection) Close(cfg ...ConnCloseCfg) error {
 	cfgC := configC(cfg)
-	defer C.free(unsafe.Pointer(cfgC))
 	if r := C.wt_conn_close(c.c, cfgC); r != 0 {
 		return wtError(r)
 	}
@@ -93,8 +91,6 @@ type SessionCfg struct {
 // OpenSession performs WT_CONNECTION::open_session call.
 func (c *Connection) OpenSession(cfg ...SessionCfg) (*Session, error) {
 	cfgC := configC(cfg)
-	defer C.free(unsafe.Pointer(cfgC))
-
 	s := &Session{}
 	if r := C.wt_conn_open_session(c.c, nil, cfgC, &s.s); r != 0 {
 		return nil, wtError(r)

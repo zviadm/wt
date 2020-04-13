@@ -36,15 +36,15 @@ func toSnakeCase(str string) string {
 	return strings.ToLower(snake)
 }
 
-// Encodes config to wiredtiger configuration string.
-// config must be []ConfigStruct of type, with length of 0 or 1,
-// otherwise this function will panic.
-// Transforms CamelCase config fields to snake_case and skips fields
-// with default values.
-func configC(config interface{}) *C.char {
+// Encodes config to wiredtiger configuration string. Returns NULL terminated
+// string so it can be directly passed to C functions as const char*.
+// Config must be []ConfigStruct of type, with length of 0 or 1, otherwise this
+// function will panic. Transforms CamelCase config fields to snake_case and
+// skips fields with default values.
+func configC(config interface{}) string {
 	v := reflect.ValueOf(config)
 	if config == nil || v.IsNil() || v.Len() == 0 {
-		return nil
+		return "\x00"
 	}
 	if v.Len() > 1 {
 		panic("only 1 config struct must be passed")
@@ -94,7 +94,5 @@ func configC(config interface{}) *C.char {
 			panic(fmt.Sprintf("unsupported type: %s:%s", vf.Name, vv.Kind()))
 		}
 	}
-	cfg := strings.Join(cfgParts, ",")
-	cfgC := C.CString(cfg)
-	return cfgC
+	return strings.Join(cfgParts, ",") + "\x00"
 }
