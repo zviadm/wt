@@ -28,6 +28,8 @@ RUN cd wiredtiger \
 	&& ./configure -with-builtins=snappy -disable-shared \
 	&& make install
 
+RUN apt-get install -y --no-install-recommends libjemalloc-dev
+
 # Extra tools.
 # ....
 
