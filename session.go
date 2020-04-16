@@ -87,6 +87,7 @@ func (s *Session) Closed() bool {
 // DataSourceCfg mirrors options for WT_SESSION::create call.
 type DataSourceCfg struct {
 	BlockCompressor string
+	Type            string
 }
 
 // Create performs WT_SESSION::create call.

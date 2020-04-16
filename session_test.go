@@ -138,7 +138,7 @@ func BenchmarkCursorInsert(b *testing.B) {
 	s, err := c.OpenSession()
 	require.NoError(b, err)
 	defer func() { require.NoError(b, s.Close()) }()
-	err = s.Create("table:test_table")
+	err = s.Create("table:test_table", DataSourceCfg{Type: "lsm"})
 	require.NoError(b, err)
 
 	m, err := s.Mutate("table:test_table")
