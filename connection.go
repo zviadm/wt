@@ -53,6 +53,7 @@ type ConnCfg struct {
 	Statistics      []Statistics
 	StatisticsLog   string
 	TransactionSync string
+	UseEnvironment  wtBool
 }
 
 // Open performs wiredtiger_open call.
