@@ -19,7 +19,7 @@ func TestOpen(t *testing.T) {
 	c, err := Open(dbDir, ConnCfg{
 		Create:        True,
 		Log:           "enabled,compressor=snappy",
-		Statistics:    []Statistics{StatsAll, StatsClear},
+		Statistics:    []StatisticsEnum{StatsAll, StatsClear},
 		StatisticsLog: "wait=30",
 	})
 	require.NoError(t, err)

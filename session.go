@@ -86,9 +86,25 @@ func (s *Session) Closed() bool {
 
 // DataSourceCfg mirrors options for WT_SESSION::create call.
 type DataSourceCfg struct {
-	BlockCompressor string
-	Type            string
+	AccessPatternHint AccessPatternEnum
+	BlockCompressor   string
+	Type              string
+	LeafKeyMax        int
+	LeafPageMax       int
+	LeafValueMax      int
+	MemoryPageMax     int
+	SplitPct          int
 }
+
+// AccessPatternEnum enumerates configuration options for 'access_pattern_hint'.
+type AccessPatternEnum string
+
+// AccessPatternEnum options.
+const (
+	AccessRandom     = "random"
+	AccessSequential = "sequential"
+	AccessNone       = "none"
+)
 
 // Create performs WT_SESSION::create call.
 func (s *Session) Create(name string, cfg ...DataSourceCfg) error {

@@ -31,17 +31,17 @@ type Connection struct {
 	c *C.WT_CONNECTION
 }
 
-// Statistics configuration options enum.
-type Statistics string
+// StatisticsEnum enumerates configuration options for 'statistics'.
+type StatisticsEnum string
 
-// Statistics configuration options.
+// StatisticsEnum options.
 const (
-	StatsAll       Statistics = "all"
-	StatsCacheWalk Statistics = "cache_walk"
-	StatsClear     Statistics = "clear"
-	StatsFast      Statistics = "fast"
-	StatsNone      Statistics = "none"
-	StatsTreeWalk  Statistics = "tree_walk"
+	StatsAll       StatisticsEnum = "all"
+	StatsCacheWalk StatisticsEnum = "cache_walk"
+	StatsClear     StatisticsEnum = "clear"
+	StatsFast      StatisticsEnum = "fast"
+	StatsNone      StatisticsEnum = "none"
+	StatsTreeWalk  StatisticsEnum = "tree_walk"
 )
 
 // ConnCfg mirrors options for wiredtiger_open call.
@@ -50,10 +50,9 @@ type ConnCfg struct {
 	Create          wtBool
 	Log             string
 	SessionMax      int
-	Statistics      []Statistics
+	Statistics      []StatisticsEnum
 	StatisticsLog   string
 	TransactionSync string
-	UseEnvironment  wtBool
 }
 
 // Open performs wiredtiger_open call.
