@@ -123,27 +123,27 @@ func TestSessionTxs(t *testing.T) {
 	require.EqualValues(t, []byte("testvalue1"), v)
 }
 
-// BenchmarkCursorInsert-4 - 272791 - 4897 ns/op - 1.00 cgocalls/op - 0 B/op - 0 allocs/op
+// BenchmarkCursorInsert-4 - 564543 - 2357 ns/op - 1.00 cgocalls/op - 0 B/op - 0 allocs/op
 // This benchmark mainly exists to confirm that Insert call doesn't do any
 // memory allocations.
 func BenchmarkCursorInsert(b *testing.B) {
 	dbDir, err := ioutil.TempDir("", "wt_")
 	require.NoError(b, err)
-	defer os.RemoveAll(dbDir)
+	b.Cleanup(func() { os.RemoveAll(dbDir) })
 
 	c, err := Open(dbDir, ConnCfg{Create: True})
 	require.NoError(b, err)
-	defer func() { require.NoError(b, c.Close()) }()
+	b.Cleanup(func() { require.NoError(b, c.Close()) })
 
 	s, err := c.OpenSession()
 	require.NoError(b, err)
-	defer func() { require.NoError(b, s.Close()) }()
+	b.Cleanup(func() { require.NoError(b, s.Close()) })
 	err = s.Create("table:test_table", DataSourceCfg{Type: "lsm"})
 	require.NoError(b, err)
 
 	m, err := s.Mutate("table:test_table")
 	require.NoError(b, err)
-	defer m.Close()
+	b.Cleanup(func() { m.Close() })
 
 	insertK := []byte("testkeyXXXXXXXX")
 	insertV := []byte("testvalXXXXXXXX")
@@ -162,19 +162,19 @@ func BenchmarkCursorInsert(b *testing.B) {
 	b.ReportMetric(float64(runtime.NumCgoCall()-cgoCalls0)/float64(b.N), "cgocalls/op")
 }
 
-// BenchmarkCursorScan-4 - 1384462 - 781 ns/op - 3.00 cgocalls/op - 96 B/op - 2 allocs/op
+// BenchmarkCursorScan-4 - 1585243 - 722 ns/op - 3.00 cgocalls/op - 96 B/op - 2 allocs/op
 func BenchmarkCursorScan(b *testing.B) {
 	dbDir, err := ioutil.TempDir("", "wt_")
 	require.NoError(b, err)
-	defer os.RemoveAll(dbDir)
+	b.Cleanup(func() { os.RemoveAll(dbDir) })
 
 	c, err := Open(dbDir, ConnCfg{Create: True})
 	require.NoError(b, err)
-	defer func() { require.NoError(b, c.Close()) }()
+	b.Cleanup(func() { require.NoError(b, c.Close()) })
 
 	s, err := c.OpenSession()
 	require.NoError(b, err)
-	defer func() { require.NoError(b, s.Close()) }()
+	b.Cleanup(func() { require.NoError(b, s.Close()) })
 	err = s.Create("table:test_table")
 	require.NoError(b, err)
 
