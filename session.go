@@ -132,16 +132,17 @@ func (s *Session) Drop(name string, cfg ...DropCfg) error {
 	return wtError(r)
 }
 
-// MutateCfg contains options that apply to write only cursor from
-// WT_SESSION::open_cursor call.
-type MutateCfg struct {
-	Overwrite wtBool
+// CursorCfg contains options for WT_SESSION::open_cursor call.
+type CursorCfg struct {
 	Bulk      wtBool
+	Overwrite wtBool
+	Readonly  wtBool
+	ReadOnce  wtBool
 	raw       wtBool
 }
 
-// Mutate creates new write only cursor.
-func (s *Session) Mutate(uri string, cfg ...MutateCfg) (*Mutator, error) {
+// OpenCursor performs WT_SESSION::open_cursor call.
+func (s *Session) OpenCursor(uri string, cfg ...CursorCfg) (*Cursor, error) {
 	uriC := C.CString(uri)
 	defer C.free(unsafe.Pointer(uriC))
 	var cfgC string
@@ -151,32 +152,7 @@ func (s *Session) Mutate(uri string, cfg ...MutateCfg) (*Mutator, error) {
 	} else {
 		cfgC = "raw\x00"
 	}
-	c := &Mutator{}
-	r := C.wt_session_open_cursor(s.s, uriC, nil, cfgC, &c.c)
-	return c, wtError(r)
-}
-
-// ScanCfg contains options that apply to read only cursor from
-// WT_SESSION::open_cursor call.
-type ScanCfg struct {
-	ReadOnce wtBool
-	readonly wtBool
-	raw      wtBool
-}
-
-// Scan creates new read only cursor.
-func (s *Session) Scan(uri string, cfg ...ScanCfg) (*Scanner, error) {
-	uriC := C.CString(uri)
-	defer C.free(unsafe.Pointer(uriC))
-	var cfgC string
-	if len(cfg) >= 1 {
-		cfg[0].readonly = True
-		cfg[0].raw = True
-		cfgC = configC(cfg)
-	} else {
-		cfgC = "raw,readonly\x00"
-	}
-	c := &Scanner{}
+	c := &Cursor{}
 	r := C.wt_session_open_cursor(s.s, uriC, nil, cfgC, &c.c)
 	return c, wtError(r)
 }
