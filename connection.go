@@ -47,6 +47,7 @@ const (
 // ConnCfg mirrors options for wiredtiger_open call.
 type ConnCfg struct {
 	CacheSize       int
+	Checkpoint      string
 	Create          wtBool
 	Log             string
 	SessionMax      int
